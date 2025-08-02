@@ -90,7 +90,17 @@
     </div>
   </div>
   <script>
-    const OPENAI_API_KEY = "OPENAI_API_KEY";
+    fetch('/api/ask', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ prompt: '英作文を添削してください: I has a pen.' })
+})
+  .then(res => res.json())
+  .then(data => {
+    console.log(data.choices[0].message.content);
+  });
     let selectedTopic = '';
     let selectedLevel = '';
     let currentPrompt = '';
