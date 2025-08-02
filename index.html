@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI英作文添削アプリ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: linear-gradient(to right, #e0f7fa, #e1bee7);
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      font-size: 16px;
+      padding: 10px;
+    }
+    button {
+      margin: 10px 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .hidden {
+      display: none;
+    }
+    .tab {
+      display: none;
+      margin-top: 15px;
+      border: 1px solid #ddd;
+      padding: 1rem;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    .tab.active {
+      display: block;
+    }
+    .section {
+      margin-top: 20px;
+    }
+    .tab-buttons button {
+      margin-right: 10px;
+    }
+    .highlight-good {
+      background-color: #d4edda;
+      font-weight: bold;
+    }
+    .highlight-bad {
+      background-color: #f8d7da;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>AI英作文添削アプリ</h1>
+  <div id="topic-selection">
+    <h2>用途を選んでください</h2>
+    <button onclick="selectTopic('TOEIC')">TOEIC</button>
+    <button onclick="selectTopic('TOEFL')">TOEFL</button>
+    <button onclick="selectTopic('IELTS')">IELTS</button>
+    <button onclick="selectTopic('英検')">英検</button>
+    <button onclick="selectTopic('日常会話')">日常会話</button>
+  </div>
+  <div id="level-selection" class="hidden">
+    <h2 id="level-title"></h2>
+    <div id="level-buttons"></div>
+    <button onclick="goBackToTopics()">← トップに戻る</button>
+  </div>
+  <div id="exercise-section" class="hidden">
+    <h2 id="exercise-title"></h2>
+    <p><strong>日本語文例：</strong> <span id="sentence-text">（ここに日本語の例文が表示されます）</span></p>
+    <textarea id="answer" placeholder="ここに英作文を入力してください"></textarea><br />
+    <button onclick="runCorrection()">添削を依頼</button>
+    <button onclick="getNextSentence()">次の問題 ▶</button>
+    <button onclick="goBackToLevels()">← レベル選択に戻る</button>
+    <div id="loading" style="display:none; font-weight:bold; color:#333;">ロード中…少々お待ちください</div>
+    <div id="results" class="section hidden">
+      <h3>診断結果</h3>
+      <p id="estimated-level">レベル判定: （ここにレベルが表示されます）</p>
+      <div class="tab-buttons">
+        <button onclick="showTab('good')">良い点</button>
+        <button onclick="showTab('bad')">改善点</button>
+        <button onclick="showTab('upgrade')">語彙・文法のアップグレード</button>
+      </div>
+      <div id="tab-good" class="tab active"></div>
+      <div id="tab-bad" class="tab"></div>
+      <div id="tab-upgrade" class="tab"></div>
+    </div>
+  </div>
+  <script>
+    const OPENAI_API_KEY = "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";
+    let selectedTopic = '';
+    let selectedLevel = '';
+    let currentPrompt = '';
+
+    const levels = {
+      TOEIC: ['400点', '600点', '730点', '800点', '860点', '900点以上'],
+      TOEFL: ['Beginner', 'Intermediate', 'Upper-Intermediate', 'Advanced'],
+      IELTS: ['Band 4', 'Band 5', 'Band 6', 'Band 7', 'Band 8', 'Band 9'],
+      英検: ['5級', '4級', '3級', '準2級', '2級', '準1級', '1級'],
+      日常会話: ['買い物', 'レストラン', '旅行', '病院で', '学校で', '電話対応']
+    };
+
+    function selectTopic(topic) {
+      selectedTopic = topic;
+      document.getElementById('topic-selection').classList.add('hidden');
+      document.getElementById('level-selection').classList.remove('hidden');
+      document.getElementById('level-title').innerText = topic + 'のレベルを選んでください';
+      const levelButtons = levels[topic].map(l => `<button onclick="selectLevel('${l}')">${l}</button>`).join('');
+      document.getElementById('level-buttons').innerHTML = levelButtons;
+    }
+
+    function selectLevel(level) {
+      selectedLevel = level;
+      document.getElementById('level-selection').classList.add('hidden');
+      document.getElementById('exercise-section').classList.remove('hidden');
+      document.getElementById('exercise-title').innerText = `${selectedTopic} - ${selectedLevel}`;
+      getNextSentence();
+    }
+
+    function goBackToTopics() {
+      document.getElementById('level-selection').classList.add('hidden');
+      document.getElementById('topic-selection').classList.remove('hidden');
+    }
+
+    function goBackToLevels() {
+      document.getElementById('exercise-section').classList.add('hidden');
+      document.getElementById('level-selection').classList.remove('hidden');
+    }
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+    }
+
+    async function getNextSentence() {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('results').classList.add('hidden');
+      document.getElementById('answer').value = '';
+      document.getElementById('sentence-text').innerText = '（読み込み中…）';
+
+      const prompt = `${selectedTopic} ${selectedLevel} レベルにふさわしい英作文の練習用の日本語文を1文だけ生成してください。必ず日本語で返してください。`;
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo",
+          messages: [
+            { role: "user", content: prompt }
+          ]
+        })
+      });
+
+      const data = await response.json();
+      currentPrompt = data.choices[0].message.content.trim();
+      document.getElementById("sentence-text").innerText = currentPrompt;
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    function generatePromptForCorrection(topic, level, japaneseSentence, userAnswer) {
+      let testTypeHint = "";
+      if (topic === "IELTS") {
+        testTypeHint = `あなたはIELTS試験の専門教師です。英検ではなくIELTSのバンドスコアで評価してください。`;
+      } else if (topic === "TOEFL") {
+        testTypeHint = `あなたはTOEFL試験の採点官です。CEFRやTOEFLスコアで評価してください。`;
+      } else if (topic === "TOEIC") {
+        testTypeHint = `あなたはTOEIC試験の採点者です。TOEICスコアに基づく表現力と文法力で評価してください。`;
+      } else if (topic === "英検") {
+        testTypeHint = `あなたは英検の採点者です。英検の級で評価してください。`;
+      } else {
+        testTypeHint = `あなたは日本人向けの日常英会話の教師です。レベルはCEFRレベルまたは簡易な英会話レベルで示してください。`;
+      }
+
+      return `
+${testTypeHint}
+
+以下の日本語文を英訳するタスクです：
+日本語文: ${japaneseSentence}
+生徒の英作文: ${userAnswer}
+
+次の形式でJSONとして返答してください：
+{
+  "level": "レベル判定（例：IELTS Band 6, 英検2級 など）",
+  "goodPoints": ["良い点1", "良い点2"],
+  "improvement": [{"text": "誤文", "reason": "理由", "suggestion": "修正案", "example": "模範例"}],
+  "upgrades": [
+    {"type": "語彙", "word": "simple", "better": "straightforward", "for": "IELTS Band 7+"},
+    {"type": "文法", "grammar": "現在形", "upgrade": "現在完了形", "for": "TOEFL 100+"}
+  ]
+}`;
+    }
+
+    async function runCorrection() {
+      const answer = document.getElementById("answer").value;
+      const fullPrompt = generatePromptForCorrection(selectedTopic, selectedLevel, currentPrompt, answer);
+
+      document.getElementById('loading').style.display = 'block';
+
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo",
+          messages: [
+            { role: "system", content: "あなたは厳格で親切な英語添削教師です。" },
+            { role: "user", content: fullPrompt }
+          ]
+        })
+      });
+
+      const result = await res.json();
+      let parsed;
+
+      try {
+        parsed = JSON.parse(result.choices[0].message.content.trim());
+      } catch (e) {
+        alert("添削結果の解析に失敗しました。JSON形式で返されなかった可能性があります。");
+        console.error(result.choices[0].message.content);
+        document.getElementById('loading').style.display = 'none';
+        return;
+      }
+
+      document.getElementById("estimated-level").innerText = parsed.level || "不明";
+      document.getElementById("tab-good").innerHTML = parsed.goodPoints?.length
+        ? parsed.goodPoints.map(p => `<p>${p}</p>`).join('')
+        : "なし";
+
+      document.getElementById("tab-bad").innerHTML = parsed.improvement?.length
+        ? parsed.improvement.map(p => `
+            <p><strong>誤文:</strong> ${p.text}</p>
+            <p><strong>理由:</strong> ${p.reason}</p>
+            <p><strong>提案:</strong> ${p.suggestion}</p>
+            <p><strong>模範例:</strong> ${p.example}</p>
+            <hr>
+          `).join('')
+        : "なし";
+
+      document.getElementById("tab-upgrade").innerHTML = parsed.upgrades?.length
+        ? parsed.upgrades.map(p => {
+            if (p.type === "語彙") {
+              return `<p>語彙: ${p.word} → ${p.better}（${p.for}）</p>`;
+            } else if (p.type === "文法") {
+              return `<p>文法: ${p.grammar} → ${p.upgrade}（${p.for}）</p>`;
+            } else {
+              return "";
+            }
+          }).join('')
+        : "再度試してください";
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('results').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
