@@ -154,11 +154,13 @@
       const prompt = `${selectedTopic} ${selectedLevel} レベルにふさわしい英作文の練習用の日本語文を1文だけ生成してください。必ず日本語で返してください。`;
 
       const response = await fetch("/api/ask", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENAI_API_KEY}`
-        },
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ prompt })
+});
+const data = await response.json();
         body: JSON.stringify({
           model: "gpt-3.5-turbo",
           messages: [
@@ -207,30 +209,31 @@ ${testTypeHint}
     }
 
     async function runCorrection() {
-      const answer = document.getElementById("answer").value;
-      const fullPrompt = generatePromptForCorrection(selectedTopic, selectedLevel, currentPrompt, answer);
+     const answer = document.getElementById("answer").value;
+  const fullPrompt = generatePromptForCorrection(selectedTopic, selectedLevel, currentPrompt, answer);
 
-      document.getElementById('loading').style.display = 'block';
-      
-    const response = await fetch("/api/ask", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },    
-  body: JSON.stringify({ prompt: fullPrompt })
-});
-const result = await res.json();
-      
-      let parsed;
+  document.getElementById('loading').style.display = 'block';
+  
+  const response = await fetch("/api/ask", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },    
+    body: JSON.stringify({ prompt: fullPrompt })
+  });
 
-      try {
-        parsed = JSON.parse(result.choices[0].message.content.trim());
-      } catch (e) {
-        alert("添削結果の解析に失敗しました。JSON形式で返されなかった可能性があります。");
-        console.error(result.choices[0].message.content);
-        document.getElementById('loading').style.display = 'none';
-        return;
-      }
+  const data = await response.json(); // ✅ これが必要！
+
+  let parsed;
+
+  try {
+    parsed = JSON.parse(data.choices[0].message.content.trim());
+  } catch (e) {
+    alert("添削結果の解析に失敗しました。JSON形式で返されなかった可能性があります。");
+    console.error(data.choices[0].message.content); // ✅ result → data に修正
+    document.getElementById('loading').style.display = 'none';
+    return;
+  }
 
       document.getElementById("estimated-level").innerText = parsed.level || "不明";
       document.getElementById("tab-good").innerHTML = parsed.goodPoints?.length
