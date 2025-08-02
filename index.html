@@ -212,11 +212,16 @@ ${testTypeHint}
 
       document.getElementById('loading').style.display = 'block';
       
-      const res = await fetch("/api/ask", {
+    const response = await fetch("/api/ask", {
   method: "POST",
   headers: {
     "Content-Type": "application/json"
   },
+  body: JSON.stringify({
+    prompt
+  })
+});
+      
   body: JSON.stringify({ prompt: fullPrompt })
 });
 const result = await res.json();
