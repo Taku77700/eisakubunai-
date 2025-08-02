@@ -211,23 +211,16 @@ ${testTypeHint}
       const fullPrompt = generatePromptForCorrection(selectedTopic, selectedLevel, currentPrompt, answer);
 
       document.getElementById('loading').style.display = 'block';
-
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "gpt-3.5-turbo",
-          messages: [
-            { role: "system", content: "あなたは厳格で親切な英語添削教師です。" },
-            { role: "user", content: fullPrompt }
-          ]
-        })
-      });
-
-      const result = await res.json();
+      
+      const res = await fetch("/api/ask", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ prompt: fullPrompt })
+});
+const result = await res.json();
+      
       let parsed;
 
       try {
