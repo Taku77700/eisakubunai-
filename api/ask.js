@@ -37,4 +37,7 @@ export default async function handler(req, res) {
   } else {
     res.status(500).json({ error: 'OpenAI API error', details: data });
   }
+  
+  const apiKey = process.env.OPENAI_API_KEY;
+console.log("API KEY:", apiKey);
 }
