@@ -151,7 +151,13 @@
       document.getElementById('answer').value = '';
       document.getElementById('sentence-text').innerText = '（読み込み中…）';
 
-      const prompt = `${selectedTopic} ${selectedLevel} レベルにふさわしい英作文の練習用の日本語文を1文だけ生成してください。必ず日本語で返してください。`;
+      let prompt = "";
+
+if (selectedTopic === "日常会話") {
+  prompt = `${selectedLevel} の時に学習者が使いそうな英語での日常会話の英作文用の日本語文を1文だけ生成してください。必ず日本語で返してください。生成の時、了解ですやもちろんですなどの応答は省略してください。`;
+} else {
+  prompt = `${selectedTopic} ${selectedLevel} レベルにふさわしい英作文の練習用の日本語文を1文だけ生成してください。必ず日本語で返してください。you must follow the selected topic and level.生成の時、もちろんですなどの応答は省略して。`;
+}
       
        const response = await fetch("/api/ask", {
     method: "POST",
