@@ -152,22 +152,14 @@
       document.getElementById('sentence-text').innerText = '（読み込み中…）';
 
       const prompt = `${selectedTopic} ${selectedLevel} レベルにふさわしい英作文の練習用の日本語文を1文だけ生成してください。必ず日本語で返してください。`;
-
-      const response = await fetch("/api/ask", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({ prompt })
-});
-const data = await response.json();
-        body: JSON.stringify({
-          model: "gpt-3.5-turbo",
-          messages: [
-            { role: "user", content: prompt }
-          ]
-        })
-      });
+      
+       const response = await fetch("/api/ask", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ prompt })
+  });
 
       const data = await response.json();
       currentPrompt = data.choices[0].message.content.trim();
